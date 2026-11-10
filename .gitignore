@@ -29,3 +29,6 @@ Thumbs.db
 
 # Vite
 vite.config.*.timestamp-*
+
+# Claude Code (local settings, worktrees)
+.claude/
