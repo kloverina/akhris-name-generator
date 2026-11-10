@@ -7,7 +7,7 @@ import { gradjes, findGradje } from '@/generators/registry';
 import type { GenderFilter } from '@/generators/types';
 import { useNameGenerator, type GradjeFilter } from '@/composables/useNameGenerator';
 
-const NAMES_PER_BATCH = 9;
+const NAMES_PER_BATCH = 12;
 
 const genderItems: { value: GenderFilter; label: string }[] = [
     { value: 'any', label: 'Любые' },
@@ -34,7 +34,7 @@ function defaultOptions() {
 const gradjeOptions = ref(defaultOptions());
 watch(gradjeId, () => (gradjeOptions.value = defaultOptions()));
 
-const { names, generate } = useNameGenerator();
+const { names, generate, regeneratePart } = useNameGenerator();
 
 function regenerate() {
     generate({
@@ -60,14 +60,16 @@ watch([gender, gradjeId, gradjeOptions], regenerate, { immediate: true });
         </header>
 
         <section class="controls" aria-label="Параметры генерации">
-            <div class="controls__row">
-                <span class="controls__label">Пол</span>
-                <SegmentedControl v-model="gender" label="Пол" :items="genderItems" />
-            </div>
+            <div class="controls__main">
+                <div class="controls__row">
+                    <span class="controls__label">Пол</span>
+                    <SegmentedControl v-model="gender" label="Пол" :items="genderItems" />
+                </div>
 
-            <div class="controls__row">
-                <span class="controls__label">Градье</span>
-                <SegmentedControl v-model="gradjeId" label="Градье" :items="gradjeItems" />
+                <div class="controls__row">
+                    <span class="controls__label">Градье</span>
+                    <SegmentedControl v-model="gradjeId" label="Градье" :items="gradjeItems" />
+                </div>
             </div>
 
             <div v-if="selectedGradje?.options.length" class="controls__row">
@@ -87,6 +89,7 @@ watch([gender, gradjeId, gradjeOptions], regenerate, { immediate: true });
                     :key="name.id"
                     :name="name"
                     :gradje="findGradje(name.gradjeId)"
+                    @regenerate-part="(index) => regeneratePart(name.id, index)"
                 />
             </div>
 
@@ -115,17 +118,17 @@ watch([gender, gradjeId, gradjeOptions], regenerate, { immediate: true });
 .page {
     max-width: var(--page-width);
     margin: 0 auto;
-    padding: 56px 24px 80px;
+    padding: 24px 24px 64px;
 }
 
 .hero {
-    max-width: 640px;
-    margin-bottom: 36px;
+    max-width: 920px;
+    margin-bottom: 20px;
 }
 
 .hero__eyebrow {
-    margin: 0 0 8px;
-    font-size: 13px;
+    margin: 0 0 4px;
+    font-size: 12px;
     font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -135,26 +138,36 @@ watch([gender, gradjeId, gradjeOptions], regenerate, { immediate: true });
 .hero__title {
     margin: 0;
     font-family: var(--font-display);
-    font-size: clamp(36px, 5vw, 52px);
+    font-size: clamp(30px, 4vw, 40px);
     font-weight: 600;
     line-height: 1.1;
 }
 
 .hero__lead {
-    margin: 14px 0 0;
-    font-size: 17px;
+    margin: 8px 0 0;
+    font-size: 15px;
     color: var(--color-text-muted);
 }
 
 .controls {
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    padding: 20px 22px;
-    margin-bottom: 28px;
+    gap: 10px;
+    padding: 14px 18px;
+    margin-bottom: 16px;
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
+}
+
+.controls__main {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 32px;
+}
+
+.controls__main > .controls__row {
+    flex: 1 1 360px;
 }
 
 .controls__row {
@@ -165,6 +178,7 @@ watch([gender, gradjeId, gradjeOptions], regenerate, { immediate: true });
 }
 
 .controls__row > :not(.controls__label) {
+    flex: 1 1 0;
     min-width: 0;
     max-width: 100%;
 }
@@ -177,23 +191,24 @@ watch([gender, gradjeId, gradjeOptions], regenerate, { immediate: true });
 }
 
 .controls__hint {
-    margin: 2px 0 0;
-    padding-top: 14px;
+    margin: 0;
+    padding-top: 10px;
     border-top: 1px solid var(--color-border);
-    font-size: 14px;
+    font-size: 13px;
     color: var(--color-text-muted);
 }
 
 .results__grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 18px;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    grid-auto-rows: 1fr;
+    gap: 12px;
 }
 
 .results__actions {
     display: flex;
     justify-content: center;
-    margin-top: 32px;
+    margin-top: 20px;
 }
 
 .button-primary {
@@ -221,8 +236,8 @@ watch([gender, gradjeId, gradjeOptions], regenerate, { immediate: true });
 
 .about {
     max-width: 720px;
-    margin-top: 72px;
-    padding-top: 32px;
+    margin-top: 48px;
+    padding-top: 24px;
     border-top: 1px solid var(--color-border);
     color: var(--color-text-muted);
 }
@@ -242,7 +257,7 @@ watch([gender, gradjeId, gradjeOptions], regenerate, { immediate: true });
 
 @media (max-width: 600px) {
     .page {
-        padding-top: 36px;
+        padding-top: 24px;
     }
 
     .controls__label {

@@ -1,5 +1,5 @@
 import type { GradjeConfig } from '../types.ts';
-import { ranks } from './dictionaries.ts';
+import { ranks, RETIRED_RANK, styles } from './dictionaries.ts';
 import { generateRetTatName } from './generator.ts';
 
 export const retTatGradje: GradjeConfig = {
@@ -10,6 +10,13 @@ export const retTatGradje: GradjeConfig = {
     hasMeanings: true,
 
     options: [
+        {
+            id: 'style',
+            label: 'Стиль',
+            type: 'select',
+            defaultValue: 'any',
+            options: [{ value: 'any', label: 'Любой' }, ...styles],
+        },
         {
             id: 'rank',
             label: 'Звание',
@@ -22,6 +29,7 @@ export const retTatGradje: GradjeConfig = {
                     label: `-${rank.suffix}`,
                     hint: rank.meaning,
                 })),
+                { value: RETIRED_RANK, label: 'В отставке', hint: 'связующая буква осталась, звания нет' },
             ],
         },
     ],

@@ -10,6 +10,9 @@ export type Gender = 'male' | 'female';
 /** Фильтр пола в интерфейсе: «Любые» = случайный пол для каждой карточки. */
 export type GenderFilter = Gender | 'any';
 
+/** Пол готового имени: 'any' — имя подходит любому полу. */
+export type NameGender = Gender | 'any';
+
 /** Дополнительный параметр, специфичный для конкретного Градья (звание, сословие…). */
 export interface GeneratorOption {
     id: string;
@@ -47,7 +50,7 @@ export interface NamePart {
 export interface GeneratedName {
     /** Стабильный ключ для списков. */
     id: string;
-    gender: Gender;
+    gender: NameGender;
     gradjeId: string;
     parts: NamePart[];
     /** Короткая заметка к имени (например, про ударение). Опционально. */

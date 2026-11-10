@@ -5,6 +5,11 @@ defineProps<{ options: GeneratorOption[] }>();
 
 const values = defineModel<Record<string, string | boolean>>({ required: true });
 
+/** Подсказка выбранного варианта — показывается рядом с селектом, а не внутри него. */
+function hintFor(option: GeneratorOption) {
+    return option.options?.find((item) => item.value === values.value[option.id])?.hint;
+}
+
 function update(id: string, value: string | boolean) {
     values.value = { ...values.value, [id]: value };
 }
@@ -22,7 +27,7 @@ function update(id: string, value: string | boolean) {
                 @change="update(option.id, ($event.target as HTMLSelectElement).value)"
             >
                 <option v-for="item in option.options" :key="item.value" :value="item.value">
-                    {{ item.label }}{{ item.hint ? ` — ${item.hint}` : '' }}
+                    {{ item.label }}
                 </option>
             </select>
 
@@ -32,23 +37,23 @@ function update(id: string, value: string | boolean) {
                 :checked="Boolean(values[option.id])"
                 @change="update(option.id, ($event.target as HTMLInputElement).checked)"
             />
+
+            <span class="gradje-options__hint">{{ hintFor(option) }}</span>
         </label>
     </div>
 </template>
 
 <style scoped>
 .gradje-options {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px 20px;
+    display: grid;
+    grid-template-columns: auto 180px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px 12px;
 }
 
+/* Поле раскладывается по колонкам общей сетки: подпись · селект · подсказка. */
 .gradje-options__field {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    min-width: 0;
-    max-width: 100%;
+    display: contents;
 }
 
 .gradje-options__label {
@@ -56,10 +61,14 @@ function update(id: string, value: string | boolean) {
     color: var(--color-text-muted);
 }
 
+.gradje-options__hint {
+    font-size: 13px;
+    color: var(--color-text-subtle);
+}
+
 .gradje-options__select {
     appearance: none;
-    min-width: 0;
-    max-width: 100%;
+    width: 100%;
     text-overflow: ellipsis;
     padding: 7px 34px 7px 14px;
     border: 1px solid var(--color-border);
@@ -74,5 +83,16 @@ function update(id: string, value: string | boolean) {
 
 .gradje-options__select:hover {
     border-color: var(--color-border-strong);
+}
+
+@media (max-width: 600px) {
+    .gradje-options {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .gradje-options__hint {
+        grid-column: 2;
+        margin-top: -4px;
+    }
 }
 </style>
