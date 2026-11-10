@@ -4,6 +4,7 @@ import {
     endings,
     epithets,
     familyRoots,
+    forbiddenFragments,
     fullNameExamples,
     personalExamples,
     ranks,
@@ -26,7 +27,12 @@ import {
  * Ударение в сгенерированных именах пока не ставим — только в примерах.
  */
 
-const EXAMPLE_CHANCE = 0.15;
+/**
+ * Шанс выпасть каждому примеру из правил. Общий шанс примера растёт с размером
+ * подходящего набора: при «Свободном» стиле примеров всего два (Аяр, Илларей),
+ * и с фиксированным шансом они повторялись бы слишком часто.
+ */
+const EXAMPLE_CHANCE_PER_ITEM = 0.006;
 const FULL_EXAMPLE_SHARE = 0.6;
 const FREE_STYLE_CHANCE = 0.35;
 const CONTRACTION_CHANCE = 0.35;
@@ -126,6 +132,12 @@ export function soundsValid(word: string): boolean {
     return true;
 }
 
+/** Есть ли в слове сочетание из списка запрещённых (Олег, Анал, Омег…). */
+export function isForbidden(word: string): boolean {
+    const lower = word.toLowerCase().replaceAll('ё', 'е');
+    return forbiddenFragments.some((fragment) => lower.includes(fragment));
+}
+
 const rareCount = (word: string) => [...word.toLowerCase()].filter((ch) => RARE.has(ch)).length;
 
 function freeEpithet(): string {
@@ -135,6 +147,7 @@ function freeEpithet(): string {
         if (dictionaryValues.has(word)) continue;
         if (!soundsValid(word)) continue;
         if (rareCount(word) > MAX_RARE_LETTERS) continue;
+        if (isForbidden(word)) continue;
         return capitalize(word);
     }
     return 'Аяр';
@@ -142,10 +155,10 @@ function freeEpithet(): string {
 
 // ── личное имя ───────────────────────────────────────────
 
-/** Склеить эпитет и окончание; при стечении трёх согласных вернёт null. */
+/** Склеить эпитет и окончание; при неудачном звучании или запрещённом сочетании вернёт null. */
 function join(epithet: string, ending: string): string | null {
     const word = epithet + ending;
-    return soundsValid(word) ? word : null;
+    return soundsValid(word) && !isForbidden(word) ? word : null;
 }
 
 function dictionaryGiven(): NamePart {
@@ -161,12 +174,17 @@ function dictionaryGiven(): NamePart {
         };
     }
 
-    const ending = pick(endings);
-    const stem =
-        epithet.contracted && Math.random() < CONTRACTION_CHANCE
-            ? pick(epithet.contracted)
-            : epithet.value;
-    const value = join(stem, ending.value) ?? epithet.value + ending.value;
+    let ending = pick(endings);
+    let value: string | null = null;
+    for (let attempt = 0; attempt < 20 && !value; attempt++) {
+        ending = pick(endings);
+        const stem =
+            epithet.contracted && Math.random() < CONTRACTION_CHANCE
+                ? pick(epithet.contracted)
+                : epithet.value;
+        value = join(stem, ending.value);
+    }
+    if (!value) return dictionaryGiven();
 
     return {
         kind: 'given',
@@ -215,7 +233,16 @@ function freeGiven(): NamePart {
 
 // ── гордое имя ───────────────────────────────────────────
 
-function familyRoot(): string {
+/** Родовое имя, которое вместе со связующей буквой не даёт запрещённого сочетания. */
+function familyRoot(linkLetter: string): string {
+    for (let attempt = 0; attempt < 50; attempt++) {
+        const root = rawFamilyRoot();
+        if (!isForbidden(root + linkLetter)) return root;
+    }
+    return 'Ири';
+}
+
+function rawFamilyRoot(): string {
     if (Math.random() < KNOWN_FAMILY_CHANCE) return pick(familyRoots);
     const first = weighted([['и', 4], ['а', 4], ['э', 2], ['о', 1]]);
     const middle = weighted([...consonants.filter(([ch]) => ch !== 'п'), ['в', 2]]);
@@ -282,6 +309,9 @@ function fromExamples(
     );
     const personalPool = style === 'free' ? [] : personalExamples;
 
+    const poolSize = fullPool.length + personalPool.length;
+    if (Math.random() >= poolSize * EXAMPLE_CHANCE_PER_ITEM) return null;
+
     const useFull =
         fullPool.length > 0 && (personalPool.length === 0 || Math.random() < FULL_EXAMPLE_SHARE);
 
@@ -347,7 +377,7 @@ function fromExamples(
                 ],
                 meaning: composeMeaning(epithet, ending),
             },
-            proudPart(familyRoot(), rankChoice),
+            proudPart(familyRoot(rankChoice.rank.linkLetter), rankChoice),
         ],
         note: item.stress ? `Ударение: ${item.stress}` : undefined,
     };
@@ -361,7 +391,7 @@ export function generateRetTatName(params: GeneratorParams): GeneratedName {
         styleOption === 'dictionary' || styleOption === 'free' ? styleOption : 'any';
     const rankChoice = chooseRank(params.options.rank);
 
-    if (params.options.rank !== RETIRED_RANK && Math.random() < EXAMPLE_CHANCE) {
+    if (params.options.rank !== RETIRED_RANK) {
         const example = fromExamples(params, style, rankChoice);
         if (example) return example;
     }
@@ -374,6 +404,6 @@ export function generateRetTatName(params: GeneratorParams): GeneratedName {
         id: crypto.randomUUID(),
         gender: 'any',
         gradjeId: 'ret-tat',
-        parts: [given, proudPart(familyRoot(), rankChoice)],
+        parts: [given, proudPart(familyRoot(rankChoice.rank.linkLetter), rankChoice)],
     };
 }
