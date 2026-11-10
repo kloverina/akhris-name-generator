@@ -1,24 +1,38 @@
 import { ref } from 'vue';
-import {generators} from "../generators/registry.ts";
-import {GeneratedName, GeneratorParams} from "../generators/types.ts";
+import { gradjes, findGradje } from '@/generators/registry.ts';
+import type { Gender, GenderFilter, GeneratedName } from '@/generators/types.ts';
 
+/** `'all'` — случайное Градье для каждой карточки. */
+export type GradjeFilter = string | 'all';
 
-export function useNameGenerator(generatorId: string) {
-    const generator = generators.find(
-        item => item.id === generatorId,
-    );
+export interface BatchParams {
+    gender: GenderFilter;
+    gradjeId: GradjeFilter;
+    /** Параметры конкретного Градья; учитываются, только если выбрано одно Градье. */
+    options: Record<string, string | boolean>;
+    count: number;
+}
 
-    const result = ref<GeneratedName | null>(null);
+function pick<T>(items: T[]): T {
+    return items[Math.floor(Math.random() * items.length)];
+}
 
-    function generate(params: GeneratorParams) {
-        if (!generator) return;
+export function useNameGenerator() {
+    const names = ref<GeneratedName[]>([]);
 
-        result.value = generator.generate(params);
+    function generate({ gender, gradjeId, options, count }: BatchParams) {
+        const single = gradjeId === 'all' ? undefined : findGradje(gradjeId);
+
+        names.value = Array.from({ length: count }, () => {
+            const gradje = single ?? pick(gradjes);
+            const cardGender: Gender = gender === 'any' ? pick<Gender>(['male', 'female']) : gender;
+
+            return gradje.generate({
+                gender: cardGender,
+                options: single ? options : {},
+            });
+        });
     }
 
-    return {
-        generator,
-        result,
-        generate,
-    };
+    return { names, generate };
 }

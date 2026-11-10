@@ -1,21 +1,27 @@
-import type { GeneratorConfig } from '../types.ts';
+import type { GradjeConfig } from '../types.ts';
+import { ranks } from './dictionaries.ts';
 import { generateRetTatName } from './generator.ts';
 
-export const retTatGenerator: GeneratorConfig = {
+export const retTatGradje: GradjeConfig = {
     id: 'ret-tat',
-    name: 'Рет-тат',
-    description: 'Генератор имён Рет-тат',
+    name: 'Рет-Тат',
+    description:
+        'Имена строятся вокруг звания рикса: личное имя из старо-язычных эпитетов и гордое имя из рода и звания.',
+    hasMeanings: true,
 
     options: [
         {
-            id: 'occupation',
-            label: 'Род деятельности',
+            id: 'rank',
+            label: 'Звание',
             type: 'select',
+            defaultValue: 'any',
             options: [
-                { value: 'soldier', label: 'Солдат' },
-                { value: 'merchant', label: 'Торговец' },
-                { value: 'priest', label: 'Жрец' },
-                { value: 'none', label: 'Не важно' },
+                { value: 'any', label: 'Любое' },
+                ...ranks.map((rank) => ({
+                    value: rank.id,
+                    label: `-${rank.suffix}`,
+                    hint: rank.meaning,
+                })),
             ],
         },
     ],

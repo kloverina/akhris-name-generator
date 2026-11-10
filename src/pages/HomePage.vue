@@ -1,155 +1,252 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import SegmentedControl from '@/components/SegmentedControl.vue';
+import GradjeOptions from '@/components/GradjeOptions.vue';
+import NameCard from '@/components/NameCard.vue';
+import { gradjes, findGradje } from '@/generators/registry';
+import type { GenderFilter } from '@/generators/types';
+import { useNameGenerator, type GradjeFilter } from '@/composables/useNameGenerator';
 
-type GenderFilter = 'any' | 'female' | 'male';
+const NAMES_PER_BATCH = 9;
 
-interface MockName {
-    firstName: string;
-    lastName: string;
-    gender: Exclude<GenderFilter, 'any'>;
-}
-
-const gender = ref<GenderFilter>('any');
-
-// Мок-данные: логика генерации будет подключена позже
-const allNames: MockName[] = [
-    { firstName: 'Фенрай', lastName: 'Ирик-Гах', gender: 'male' },
-    { firstName: 'Срарэй', lastName: 'Ирид-Тет', gender: 'female' },
-    { firstName: 'Перин', lastName: 'Ириг-Ват', gender: 'male' },
-    { firstName: 'Нрарэк', lastName: 'Ирил-Ла', gender: 'female' },
-    { firstName: 'Каврап', lastName: 'Ири-Тат', gender: 'male' },
-    { firstName: 'Прапуй', lastName: 'Ириф-Ро', gender: 'female' },
-    { firstName: 'Евпэк', lastName: 'Ирик-Гах', gender: 'male' },
-    { firstName: 'Певпик', lastName: 'Ириг-Ват', gender: 'female' },
+const genderItems: { value: GenderFilter; label: string }[] = [
+    { value: 'any', label: 'Любые' },
+    { value: 'male', label: 'Мужские' },
+    { value: 'female', label: 'Женские' },
 ];
 
-const shownNames = ref<MockName[]>([...allNames]);
+const gradjeItems = computed<{ value: GradjeFilter; label: string }[]>(() => [
+    { value: 'all', label: 'Все Градья' },
+    ...gradjes.map((gradje) => ({ value: gradje.id, label: gradje.name })),
+]);
 
-const filteredNames = computed(() =>
-    gender.value === 'any'
-        ? shownNames.value
-        : shownNames.value.filter((item) => item.gender === gender.value),
-);
+const gender = ref<GenderFilter>('any');
+const gradjeId = ref<GradjeFilter>(gradjes.length === 1 ? gradjes[0].id : 'all');
 
-function refreshNames() {
-    shownNames.value = [...allNames].sort(() => Math.random() - 0.5);
+const selectedGradje = computed(() => (gradjeId.value === 'all' ? undefined : findGradje(gradjeId.value)));
+
+function defaultOptions() {
+    return Object.fromEntries(
+        (selectedGradje.value?.options ?? []).map((option) => [option.id, option.defaultValue ?? '']),
+    ) as Record<string, string | boolean>;
 }
+
+const gradjeOptions = ref(defaultOptions());
+watch(gradjeId, () => (gradjeOptions.value = defaultOptions()));
+
+const { names, generate } = useNameGenerator();
+
+function regenerate() {
+    generate({
+        gender: gender.value,
+        gradjeId: gradjeId.value,
+        options: gradjeOptions.value,
+        count: NAMES_PER_BATCH,
+    });
+}
+
+watch([gender, gradjeId, gradjeOptions], regenerate, { immediate: true });
 </script>
 
 <template>
-  <div class="page">
-    <header class="header">
-      <h1 class="title">Генератор имён</h1>
-      <label class="filter">
-        <span class="filter-label">Пол</span>
-        <select v-model="gender" class="select">
-          <option value="any">Любые</option>
-          <option value="female">Женские</option>
-          <option value="male">Мужские</option>
-        </select>
-      </label>
-    </header>
+    <div class="page">
+        <header class="hero">
+            <p class="hero__eyebrow">Мир Акхрис</p>
+            <h1 class="hero__title">Генератор имён</h1>
+            <p class="hero__lead">
+                Имена для персонажей по правилам каждого Градья. Где имена что-то значат —
+                карточка покажет, из чего имя сложено и как оно переводится.
+            </p>
+        </header>
 
-    <main class="content">
-      <div class="cards">
-        <article v-for="item in filteredNames" :key="`${item.firstName}-${item.lastName}`" class="card">
-          <span class="card-first-name">{{ item.firstName }}</span>
-          <span class="card-last-name">{{ item.lastName }}</span>
-        </article>
-      </div>
+        <section class="controls" aria-label="Параметры генерации">
+            <div class="controls__row">
+                <span class="controls__label">Пол</span>
+                <SegmentedControl v-model="gender" label="Пол" :items="genderItems" />
+            </div>
 
-      <button type="button" class="refresh-button" @click="refreshNames">
-        Новые имена
-      </button>
-    </main>
-  </div>
+            <div class="controls__row">
+                <span class="controls__label">Градье</span>
+                <SegmentedControl v-model="gradjeId" label="Градье" :items="gradjeItems" />
+            </div>
+
+            <div v-if="selectedGradje?.options.length" class="controls__row">
+                <span class="controls__label">Детали</span>
+                <GradjeOptions v-model="gradjeOptions" :options="selectedGradje.options" />
+            </div>
+
+            <p v-if="selectedGradje?.description" class="controls__hint">
+                {{ selectedGradje.description }}
+            </p>
+        </section>
+
+        <section class="results" aria-live="polite">
+            <div class="results__grid">
+                <NameCard
+                    v-for="name in names"
+                    :key="name.id"
+                    :name="name"
+                    :gradje="findGradje(name.gradjeId)"
+                />
+            </div>
+
+            <div class="results__actions">
+                <button type="button" class="button-primary" @click="regenerate">
+                    <span aria-hidden="true">↻</span> Новые имена
+                </button>
+            </div>
+        </section>
+
+        <footer class="about">
+            <h2 class="about__title">Об именах Акхриса</h2>
+            <p>
+                Каждое Градье называет своих жителей по-своему. В Рет-Тате имя состоит из личного
+                имени, собранного из старо-язычных эпитетов, и гордого имени — рода и звания.
+                В других Градьях имена могут и не нести значения: тогда карточка покажет только само имя.
+            </p>
+            <p class="about__note">
+                Сейчас генератор работает на примерах — полноценная логика имён появится позже.
+            </p>
+        </footer>
+    </div>
 </template>
 
 <style scoped>
 .page {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    padding: 24px 32px;
+    max-width: var(--page-width);
+    margin: 0 auto;
+    padding: 56px 24px 80px;
 }
 
-.header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
+.hero {
+    max-width: 640px;
+    margin-bottom: 36px;
 }
 
-.title {
+.hero__eyebrow {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+}
+
+.hero__title {
     margin: 0;
-    font-size: 24px;
+    font-family: var(--font-display);
+    font-size: clamp(36px, 5vw, 52px);
+    font-weight: 600;
+    line-height: 1.1;
 }
 
-.filter {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+.hero__lead {
+    margin: 14px 0 0;
+    font-size: 17px;
+    color: var(--color-text-muted);
 }
 
-.filter-label {
-    font-size: 14px;
-    color: #666;
-}
-
-.select {
-    padding: 8px 12px;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    font-size: 14px;
-}
-
-.content {
-    flex: 1;
+.controls {
     display: flex;
     flex-direction: column;
+    gap: 14px;
+    padding: 20px 22px;
+    margin-bottom: 28px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+}
+
+.controls__row {
+    display: flex;
     align-items: center;
-    gap: 24px;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+}
+
+.controls__row > :not(.controls__label) {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.controls__label {
+    width: 72px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text-subtle);
+}
+
+.controls__hint {
+    margin: 2px 0 0;
+    padding-top: 14px;
+    border-top: 1px solid var(--color-border);
+    font-size: 14px;
+    color: var(--color-text-muted);
+}
+
+.results__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 18px;
+}
+
+.results__actions {
+    display: flex;
+    justify-content: center;
     margin-top: 32px;
 }
 
-.cards {
-    width: 100%;
-    max-width: 800px;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 16px;
-}
-
-.card {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 16px;
-    border: 1px solid #e0e0e0;
-    border-radius: 12px;
-}
-
-.card-first-name {
-    font-size: 18px;
-    font-weight: 600;
-}
-
-.card-last-name {
-    font-size: 14px;
-    color: #666;
-}
-
-.refresh-button {
-    padding: 10px 24px;
-    border: none;
-    border-radius: 8px;
-    background: #4a67d8;
+.button-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 28px;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--color-accent);
     color: #fff;
     font-size: 15px;
+    font-weight: 600;
     cursor: pointer;
+    transition: background-color 0.15s, transform 0.1s;
 }
 
-.refresh-button:hover {
-    background: #3a55c0;
+.button-primary:hover {
+    background: var(--color-accent-hover);
+}
+
+.button-primary:active {
+    transform: scale(0.98);
+}
+
+.about {
+    max-width: 720px;
+    margin-top: 72px;
+    padding-top: 32px;
+    border-top: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+}
+
+.about__title {
+    margin: 0 0 10px;
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.about__note {
+    font-size: 13px;
+    color: var(--color-text-subtle);
+}
+
+@media (max-width: 600px) {
+    .page {
+        padding-top: 36px;
+    }
+
+    .controls__label {
+        width: 100%;
+    }
 }
 </style>
