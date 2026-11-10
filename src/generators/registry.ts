@@ -1,6 +1,7 @@
 import type { GradjeConfig } from './types.ts';
 
 import { retTatGradje } from './ret-tat';
+import { taveriaGradje } from './taveria';
 
 /**
  * Все Градья мира Акхрис, для которых есть генератор.
@@ -9,6 +10,7 @@ import { retTatGradje } from './ret-tat';
  */
 export const gradjes: GradjeConfig[] = [
     retTatGradje,
+    taveriaGradje,
 ];
 
 export function findGradje(id: string): GradjeConfig | undefined {

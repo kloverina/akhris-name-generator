@@ -51,7 +51,7 @@ watch([gender, gradjeId, gradjeOptions], regenerate, { immediate: true });
 <template>
     <div class="page">
         <header class="hero">
-            <p class="hero__eyebrow">Мир Акхрис</p>
+            <p class="hero__eyebrow">Акхрис</p>
             <h1 class="hero__title">Генератор имён</h1>
             <p class="hero__lead">
                 Имена для персонажей по правилам каждого Градья. Где имена что-то значат —
